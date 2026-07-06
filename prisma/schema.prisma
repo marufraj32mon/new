@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PageConnection {
+  id             String         @id @default(cuid())
+  pageId         String         @unique
+  pageName       String
+  channel        String         @default("messenger") // messenger or instagram
+  accessTokenEnc String
+  igBusinessId   String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  conversations  Conversation[]
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  platformId    String
+  channel       String
+  name          String?
+  profilePic    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+
+  @@unique([platformId, channel])
+}
+
+model Conversation {
+  id                    String         @id @default(cuid())
+  pageDbId              String
+  page                  PageConnection @relation(fields: [pageDbId], references: [id], onDelete: Cascade)
+  customerId            String
+  customer              Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  channel               String
+  status                String         @default("OPEN") // OPEN, PENDING, ORDER_CONFIRMED, CLOSED
+  assignedTo            String?
+  tags                  String?
+  lastMessage           String?
+  lastMessageAt         DateTime?
+  lastCustomerMessageAt DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  messages              Message[]
+
+  @@index([lastMessageAt])
+  @@index([status])
+  @@index([assignedTo])
+}
+
+model Message {
+  id               String       @id @default(cuid())
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction        String       // incoming or outgoing
+  text             String?
+  metaMessageId    String?
+  senderPlatformId String?
+  agentName        String?
+  raw              Json?
+  createdAt        DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([direction])
+  @@index([agentName])
+}
